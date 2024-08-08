@@ -14,7 +14,7 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // MongoDB connection
-mongoose.connect('mongodb://localhost:27017/expense-tracker');
+mongoose.connect('mongodb+srv://amyadav319:%404Placement010213@cluster0.mnvyrz1.mongodb.net/');
 
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
