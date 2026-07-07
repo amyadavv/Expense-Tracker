@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
@@ -7,20 +9,38 @@ const cors = require('cors');
 
 const app = express();
 const port = process.env.PORT || 5000;
+const mongoUri = process.env.MONGO_URI;
+const fallbackMongoUri = process.env.MONGO_FALLBACK_URI || 'mongodb://127.0.0.1:27017/expense-tracker';
 
 // Middleware
 app.use(cors());
 
 app.use(bodyParser.json());
 
-// MongoDB connection
-mongoose.connect('mongodb://localhost:27017/expense-tracker');
+const connectToMongo = async () => {
+    try {
+        await mongoose.connect(mongoUri, {
+            serverSelectionTimeoutMS: 5000,
+        });
+        console.log('Connected to MongoDB');
+    } catch (primaryError) {
+        console.error('Primary MongoDB connection failed:', primaryError.message);
 
-const db = mongoose.connection;
-db.on('error', console.error.bind(console, 'connection error:'));
-db.once('open', () => {
-    console.log('Connected to MongoDB');
-});
+        if (fallbackMongoUri && fallbackMongoUri !== mongoUri) {
+            try {
+                await mongoose.connect(fallbackMongoUri, {
+                    serverSelectionTimeoutMS: 5000,
+                });
+                console.log('Connected to fallback MongoDB');
+                return;
+            } catch (fallbackError) {
+                console.error('Fallback MongoDB connection failed:', fallbackError.message);
+            }
+        }
+
+        throw primaryError;
+    }
+};
 
 // Expense schema and model
 const expenseSchema = new mongoose.Schema({
@@ -84,7 +104,7 @@ app.get('/search', async (req, res) => {
     const { q } = req.query;
     try {
         const expenses = await Expense.find({
-            description: new RegExp(q, 'i') 
+            description: new RegExp(q, 'i')
         });
         res.status(200).json(expenses);
     } catch (error) {
@@ -92,6 +112,16 @@ app.get('/search', async (req, res) => {
     }
 });
 
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-});
+const startServer = async () => {
+    try {
+        await connectToMongo();
+        app.listen(port, () => {
+            console.log(`Server running on port ${port}`);
+        });
+    } catch (error) {
+        console.error('Server failed to start because MongoDB is unavailable.');
+        process.exit(1);
+    }
+};
+
+startServer();
