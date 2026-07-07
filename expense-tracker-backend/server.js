@@ -10,7 +10,6 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 5000;
 const mongoUri = process.env.MONGO_URI;
-const fallbackMongoUri = process.env.MONGO_FALLBACK_URI || 'mongodb://127.0.0.1:27017/expense-tracker';
 
 // Middleware
 app.use(cors());
@@ -25,19 +24,6 @@ const connectToMongo = async () => {
         console.log('Connected to MongoDB');
     } catch (primaryError) {
         console.error('Primary MongoDB connection failed:', primaryError.message);
-
-        if (fallbackMongoUri && fallbackMongoUri !== mongoUri) {
-            try {
-                await mongoose.connect(fallbackMongoUri, {
-                    serverSelectionTimeoutMS: 5000,
-                });
-                console.log('Connected to fallback MongoDB');
-                return;
-            } catch (fallbackError) {
-                console.error('Fallback MongoDB connection failed:', fallbackError.message);
-            }
-        }
-
         throw primaryError;
     }
 };
